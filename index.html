@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>体感温度计</title>
+    <!-- 引入 Google Material Symbols 和 Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0" rel="stylesheet">
+    <!-- 引入 Leaflet 地图 CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- 引入 Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <div class="header-content">
+                <h1>体感温度计</h1>
+            </div>
+            <p class="subtitle">重新定义温度</p>
+        </header>
+
+        <!-- 当前天气模块 -->
+        <section class="card current-weather-card" id="current-weather-section" style="display: none;">
+            <div class="current-main">
+                <div class="current-icon-temp">
+                    <span id="current-icon" class="weather-icon-large">--</span>
+                    <div class="current-temp-group">
+                        <div class="temp-dual-wrap">
+                            <div class="temp-item">
+                                <span class="temp-label">室外体感</span>
+                                <span id="current-apparent-outdoor" class="primary-temp">--°</span>
+                            </div>
+                            <div class="temp-divider"></div>
+                            <div class="temp-item">
+                                <span class="temp-label">室内体感</span>
+                                <span id="current-apparent-indoor" class="primary-temp">--°</span>
+                            </div>
+                        </div>
+                        <span id="current-real-temp" class="secondary-temp">气象站实测气温: --°C</span>
+                    </div>
+                </div>
+                <div class="current-desc-group">
+                    <span id="current-desc" class="current-desc">--</span>
+                </div>
+            </div>
+            <div class="current-details-grid">
+                <div class="detail-item">
+                    <span class="material-symbols-rounded">humidity_percentage</span>
+                    <div class="detail-text">
+                        <span class="detail-label">湿度</span>
+                        <span id="current-humidity" class="detail-val">--%</span>
+                    </div>
+                </div>
+                <div class="detail-item">
+                    <span class="material-symbols-rounded">air</span>
+                    <div class="detail-text">
+                        <span class="detail-label">风速</span>
+                        <span id="current-wind" class="detail-val">-- km/h</span>
+                    </div>
+                </div>
+                <div class="detail-item">
+                    <span class="material-symbols-rounded">light_mode</span>
+                    <div class="detail-text">
+                        <span class="detail-label">日照强度</span>
+                        <span id="current-radiation" class="detail-val">-- W/m²</span>
+                    </div>
+                </div>
+                <div class="detail-item">
+                    <span class="material-symbols-rounded">wb_sunny</span>
+                    <div class="detail-text">
+                        <span class="detail-label">日照参考</span>
+                        <span id="current-rad-level" class="detail-val">--</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 浮动定位地图模块 (悬浮于右上角) -->
+        <div id="floating-map-widget" class="floating-map-widget collapsed">
+            <button id="btn-toggle-map" class="map-toggle-btn" title="定位 / 展开地图">
+                <span class="material-symbols-rounded">my_location</span>
+            </button>
+            <div class="floating-map-panel">
+                <div class="section-header">
+                    <h2 class="section-title"><span class="material-symbols-rounded">my_location</span> 气象点定位</h2>
+                    <span id="location-status" class="status-badge">未定位</span>
+                    <button id="btn-close-map" class="icon-button close-map-btn"><span class="material-symbols-rounded">close</span></button>
+                </div>
+                <div id="map" class="map-container"></div>
+                <div id="loading-overlay" class="loading-overlay hidden">
+                    <span class="material-symbols-rounded loading-spinner">sync</span>
+                    <p>正在分析数据...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主内容区域：图表与每日卡片 -->
+        <main class="main-content">
+            <!-- 室内/室外折线图卡片区 -->
+            <div class="charts-container">
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary)">home</span>
+                        <h3>室内综合体感走势 (含湿度与阳光折射)</h3>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="indoorChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <span class="material-symbols-rounded" style="color: var(--color-warm)">nature_people</span>
+                        <h3>室外综合体感走势 (综合强风与暴晒)</h3>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="outdoorChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 未来7天预报横向滚动列表 -->
+            <h2 class="section-title" style="margin-top: 1rem;"><span class="material-symbols-rounded">calendar_month</span> 每日预报概览 (点击查看详情)</h2>
+            <div class="daily-cards-container" id="daily-cards">
+                <!-- 每日卡片将通过 JS 动态生成 -->
+            </div>
+        </main>
+    </div>
+
+    <!-- 每日详细信息弹窗 (Dialog) -->
+    <dialog id="detail-dialog" class="md-dialog">
+        <div class="dialog-content">
+            <div class="dialog-top-actions">
+                <button id="close-dialog-icon" class="icon-button"><span class="material-symbols-rounded">close</span></button>
+            </div>
+            <div class="dialog-header-info">
+                <h2 id="dialog-date">日期</h2>
+                <div class="dialog-weather-icon" id="dialog-icon">☀️</div>
+                <p class="dialog-desc" id="dialog-desc">晴朗</p>
+            </div>
+            
+            <div class="dialog-data-grid">
+                <div class="data-item">
+                    <span class="material-symbols-rounded">device_thermostat</span>
+                    <span>气温 (高/低)</span>
+                    <strong id="dialog-temp">-- / --</strong>
+                </div>
+                <div class="data-item">
+                    <span class="material-symbols-rounded">humidity_mid</span>
+                    <span>平均相对湿度</span>
+                    <strong id="dialog-humidity">--</strong>
+                </div>
+                <div class="data-item">
+                    <span class="material-symbols-rounded">air</span>
+                    <span>最大风速</span>
+                    <strong id="dialog-wind">--</strong>
+                </div>
+                <div class="data-item">
+                    <span class="material-symbols-rounded">wb_sunny</span>
+                    <span>日出 / 日落</span>
+                    <strong id="dialog-sun">-- / --</strong>
+                </div>
+                <div class="data-item full-width highlight-item">
+                    <span class="material-symbols-rounded">home</span>
+                    <span>室内综合体感预测 (最高 / 最低)</span>
+                    <strong id="dialog-indoor">-- / --</strong>
+                </div>
+                <div class="data-item full-width highlight-item">
+                    <span class="material-symbols-rounded">nature_people</span>
+                    <span>室外综合体感预测 (最高 / 最低)</span>
+                    <strong id="dialog-outdoor">-- / --</strong>
+                </div>
+            </div>
+            
+            <div class="dialog-action">
+                <button id="btn-close-dialog" class="md-button">确认</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- 引入 Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="./main.js"></script>
+</body>
+</html>
