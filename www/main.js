@@ -1,15 +1,13 @@
 /**
- * 智能体感温度计 4.3 - 纯净重构版
- * 
+ * 智能体感温度计 v1.28 - 正式版
+ *
  * 主要功能：
  * - 室内外体感温差计算 (基于 Steadman 模型)
  * - 逐小时预报 (过去3h - 未来12h)
- * - 7天每日趋势
- * - 高清中文高德地图
- * - 移动端原生适配 (Capacitor)
+ * - 7天每日趋势 + 折线图
+ * - 高清中文高德地图 + 城市搜索 + 收藏
+ * - 移动端原生沉浸式适配 (Capacitor + WindowInsetsCompat)
  */
-// [同步测试信号] 如果您在手机上看到背景变红，说明同步成功
-document.documentElement.style.background = 'red'; 
 
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -26,75 +24,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) { console.warn('StatusBar plugin error:', e); }
     }
 
-    // 诊断面板初始化
-    function initDebugPanel() {
-        const panel = document.createElement('div');
-        panel.id = 'safe-area-debug';
-        panel.style.cssText = 'position:fixed;bottom:10px;right:10px;background:rgba(0,0,0,0.7);color:white;padding:8px;border-radius:8px;font-size:10px;z-index:9999;pointer-events:none;font-family:monospace;line-height:1.4;';
-        panel.innerHTML = `
-            <div>JS Safe Top: <span id="debug-js-val">-</span></div>
-            <div>Native Injection: <span id="debug-native-val">-</span></div>
-            <div>CSS env(): <span id="debug-env-val">-</span></div>
-            <div>DPR: ${window.devicePixelRatio}</div>
-        `;
-        document.body.appendChild(panel);
-    }
-
-    // 智能安全高度适配器 (诊断增强版)
-    async function adaptSafeTop() {
-        initDebugPanel();
-        
-        let attempts = 0;
-        const maxAttempts = 30; // 探测 3 秒
-        
-        const poll = () => {
-            const debugJs = document.getElementById('debug-js-val');
-            const debugNative = document.getElementById('debug-native-val');
-            const debugEnv = document.getElementById('debug-env-val');
-
-            // 1. 检查原生注入
-            if (window.NATIVE_SAFE_TOP) {
-                document.documentElement.style.setProperty('--js-safe-top', window.NATIVE_SAFE_TOP + 'px');
-                if (debugNative) debugNative.innerText = window.NATIVE_SAFE_TOP + 'px';
-            }
-
-            // 2. 检查 CSS env()
-            const div = document.createElement('div');
-            div.style.paddingTop = 'env(safe-area-inset-top)';
-            div.style.position = 'fixed';
-            div.style.visibility = 'hidden';
-            document.body.appendChild(div);
-            const style = window.getComputedStyle(div);
-            const paddingTop = parseFloat(style.paddingTop);
-            document.body.removeChild(div);
-
-            if (debugEnv) debugEnv.innerText = paddingTop + 'px';
-
-            // 3. 决定最终值
-            let finalTop = 0;
-            if (window.NATIVE_SAFE_TOP) finalTop = window.NATIVE_SAFE_TOP;
-            else if (paddingTop > 0) finalTop = paddingTop;
-
-            if (finalTop > 0) {
-                document.documentElement.style.setProperty('--js-safe-top', finalTop + 'px');
-                if (debugJs) debugJs.innerText = finalTop + 'px';
-                return true;
-            }
-            return false;
-        };
-
-        // 持续轮询更新面板数据
-        const interval = setInterval(() => {
-            attempts++;
-            poll(); // 即使返回 true 也继续轮询，以便观察面板变化
-            if (attempts >= maxAttempts) clearInterval(interval);
-        }, 150);
-    }
-    
     // 初始化流程
     (async () => {
         await initStatusBar();
-        await adaptSafeTop();
     })();
 
     // ==========================================
