@@ -29,8 +29,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             // 1. 优先调用 Capacitor 原生接口获取高度
             const info = await StatusBar.getHeight();
             if (info && info.height > 0) {
-                document.documentElement.style.setProperty('--js-safe-top', info.height + 'px');
-                console.log('Native Status Bar Height:', info.height);
+                // 关键修正：将原生返回的物理像素转换为网页使用的逻辑像素
+                const logicalHeight = info.height / window.devicePixelRatio;
+                document.documentElement.style.setProperty('--js-safe-top', logicalHeight + 'px');
+                console.log('Native Logical Height:', logicalHeight);
                 return;
             }
         } catch (e) {
