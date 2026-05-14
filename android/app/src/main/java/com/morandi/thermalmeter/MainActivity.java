@@ -1,35 +1,40 @@
 package com.morandi.thermalmeter;
 
 import android.os.Bundle;
-import android.webkit.WebView;
+import android.view.View;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
+
+        // 步骤 1: 开启 Edge-to-Edge 沉浸模式
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-        
-        final WebView webView = bridge.getWebView();
-        
-        // 诊断版逻辑：每隔 1s 注入一次，持续 5 次，确保 JS 捕获成功
-        for (int i = 1; i <= 5; i++) {
-            webView.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
-                    if (resourceId > 0) {
-                        int heightPx = getResources().getDimensionPixelSize(resourceId);
-                        float density = getResources().getDisplayMetrics().density;
-                        float logicalHeight = heightPx / density;
-                        
-                        // 注入调试日志和变量
-                        webView.evaluateJavascript("window.NATIVE_SAFE_TOP = " + logicalHeight + "; console.log('DEBUG: Native Height Injected: " + logicalHeight + "');", null);
-                    }
-                }
-            }, 500 + (i * 1000));
-        }
+
+        // 步骤 2: 监听真实 Insets，在测量完成时立即注入
+        View decorView = getWindow().getDecorView();
+        ViewCompat.setOnApplyWindowInsetsListener(decorView, (v, insets) -> {
+            // 获取状态栏的真实像素高度
+            Insets statusBarInsets = insets.getInsets(WindowInsetsCompat.Type.statusBars());
+            int statusBarPx = statusBarInsets.top;
+
+            if (statusBarPx > 0) {
+                float density = getResources().getDisplayMetrics().density;
+                float statusBarDp = statusBarPx / density;
+
+                // 直接将 CSS 变量注入到网页的 :root 上，完全绕过 JS 变量
+                String js = "document.documentElement.style.setProperty('--native-safe-top', '" + statusBarDp + "px');";
+                bridge.getWebView().post(() ->
+                    bridge.getWebView().evaluateJavascript(js, null)
+                );
+            }
+
+            return insets;
+        });
     }
 }

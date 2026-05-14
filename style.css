@@ -57,9 +57,8 @@ body {
     font-size: 1rem; 
     min-height: 100vh;
     align-items: flex-start;
-    /* 核心沉浸：由 JS 动态嗅探系统变量，若失效则启用 28px 温和避让 */
-    /* 适配悬浮定位栏：完全依赖 js-safe-top 变量 (由原生接口动态注入) */
-    padding-top: calc(var(--js-safe-top, 0px) + 5.0rem);
+    /* 核心沉浸：由 WindowInsetsCompat 直接注入 --native-safe-top，精准可靠 */
+    padding-top: calc(var(--native-safe-top, 28px) + 5.0rem);
     padding-left: 1rem;
     padding-right: 1rem;
     padding-bottom: 2rem;
@@ -124,7 +123,7 @@ body {
 /* 地理位置管理中心 (顶部悬浮) */
 .location-manager {
     position: fixed;
-    top: calc(var(--js-safe-top, 0px) + 0.8rem);
+    top: calc(var(--native-safe-top, 28px) + 1.2rem);
     left: 0;
     right: 0;
     padding: 0.4rem 1rem;
