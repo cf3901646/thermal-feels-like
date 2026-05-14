@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>体感温度计</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#f2f2f7">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="apple-touch-icon" href="app-icon.png">
+    <link rel="stylesheet" href="./lib/leaflet.css">
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 下拉刷新指示器 -->
+        <div id="pull-to-refresh" class="ptr-container">
+            <div class="ptr-content">
+                <svg class="svg-icon ptr-icon" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                <span class="ptr-text">下拉刷新</span>
+            </div>
+        </div>
+
+        <!-- 纯净版：移除了头部标题 -->
+
+        <!-- 左上角地理位置管理中心 -->
+        <div class="location-manager">
+            <div class="location-bar">
+                <button id="btn-manager-loc" class="loc-action-btn" title="当前位置">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
+                </button>
+                <div class="city-display-wrap" id="city-display-clicker">
+                    <span id="location-status">获取位置中...</span>
+                    <svg class="svg-icon arrow-icon" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+                </div>
+                <button id="btn-manager-map" class="loc-action-btn" title="地图选点">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                </button>
+                <button id="btn-favorite" class="loc-action-btn" title="收藏当前位置">
+                    <svg class="svg-icon star-icon" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                </button>
+            </div>
+
+            <!-- 搜索与收藏面板 (默认隐藏) -->
+            <div class="location-panel hidden" id="location-panel">
+                <div class="search-input-group">
+                    <input type="text" id="city-search-input" placeholder="搜索城市名称...">
+                    <div id="search-loading" class="mini-spinner hidden"></div>
+                </div>
+                <div class="panel-section">
+                    <div class="section-label">搜索结果</div>
+                    <div id="search-results" class="result-list"></div>
+                </div>
+                <div class="panel-section">
+                    <div class="section-label">收藏地点</div>
+                    <div id="favorites-list" class="favorite-list">
+                        <!-- 动态生成 -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 嵌入式地图容器 (由按钮触发显示) -->
+            <div id="map-container-wrap" class="map-mini-wrap hidden">
+                <div id="map" class="map-container"></div>
+                <div class="map-hint">点击地图更换位置</div>
+            </div>
+        </div>
+
+        <!-- 当前天气模块 -->
+        <section class="card current-weather-card" id="current-weather-section" style="display: none;">
+            <div class="current-main">
+                <div class="current-icon-temp">
+                    <span id="current-icon" class="weather-icon-large">☀️</span>
+                    <div class="current-temp-group">
+                        <div class="temp-dual-wrap">
+                            <div class="temp-item">
+                                <span class="temp-label text-outdoor">室外体感</span>
+                                <span id="current-apparent-outdoor" class="primary-temp text-outdoor">--°</span>
+                                <span id="current-real-temp" class="secondary-temp">气温: --°C</span>
+                            </div>
+                            <div class="temp-divider"></div>
+                            <div class="temp-item indoor-item">
+                                <span class="temp-label text-indoor">室内体感</span>
+                                <span id="current-apparent-indoor" class="primary-temp text-indoor">--°</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="current-desc-group">
+                    <span id="current-desc" class="current-desc">读取中</span>
+                </div>
+            </div>
+
+            <!-- 重新补回丢失的详情网格 -->
+            <div class="current-details-grid">
+                <div class="detail-item">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2c-4 4.5-6 7.5-6 10.5a6 6 0 0 0 12 0c0-3-2-6-6-10.5z" fill="currentColor"/></svg>
+                    <div class="detail-text">
+                        <span class="detail-label">相对湿度</span>
+                        <span id="current-humidity" class="detail-val">--%</span>
+                    </div>
+                </div>
+                <div class="detail-item">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2M9.6 4.6A2 2 0 1 1 11 8H2M12.6 19.4A2 2 0 1 0 14 16H2" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+                    <div class="detail-text">
+                        <span class="detail-label">当前风速</span>
+                        <span id="current-wind" class="detail-val">-- km/h</span>
+                    </div>
+                </div>
+                <div class="detail-item">
+                    <svg class="svg-icon" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="4" fill="currentColor" />
+                        <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+                    </svg>
+                    <div class="detail-text">
+                        <span class="detail-label">日照辐射</span>
+                        <span id="current-radiation" class="detail-val">-- W/m²</span>
+                    </div>
+                </div>
+                <div class="detail-item">
+                    <svg class="svg-icon" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="5" fill="currentColor" />
+                        <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    <div class="detail-text">
+                        <span class="detail-label">日照强度</span>
+                        <span id="current-rad-level" class="detail-val">--</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 每小时预报模块 (横向滚动) -->
+        <section class="hourly-forecast-section">
+            <h2 class="section-title">逐小时体感</h2>
+            <div class="hourly-cards-container" id="hourly-cards">
+                <!-- 动态生成 -->
+            </div>
+        </section>
+
+        <!-- 主内容区域：图表与每日卡片 -->
+        <main class="main-content">
+            <!-- 室内/室外折线图卡片区 -->
+            <div class="charts-container">
+                <section class="card chart-card">
+                    <div class="card-header">
+                        <h3>室外体感</h3>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="outdoorChart"></canvas>
+                    </div>
+                </section>
+
+                <section class="card chart-card">
+                    <div class="card-header">
+                        <h3>室内体感</h3>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="indoorChart"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <!-- 每日预测卡片列表 -->
+            <section class="daily-forecast-section">
+                <h2 class="section-title">未来 8 日预报</h2>
+                <div class="daily-cards-container" id="daily-cards">
+                    <!-- 动态生成 -->
+                </div>
+            </section>
+        </main>
+
+        <!-- 加载动画 -->
+        <div id="loading-overlay" class="loading-overlay">
+            <svg class="loading-spinner-svg" viewBox="0 0 50 50">
+                <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
+            </svg>
+            <p>正在加载气象数据</p>
+        </div>
+    </div>
+
+    <!-- 详情弹窗 -->
+    <dialog id="detail-dialog" class="md-dialog">
+        <div class="dialog-content">
+            <div class="dialog-top-actions">
+                <button id="close-dialog-icon" class="icon-button"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+            </div>
+            <div class="dialog-header-info">
+                <h2 id="dialog-date">2026年5月1日</h2>
+                <span id="dialog-icon" class="dialog-weather-icon">☀️</span>
+                <p id="dialog-desc" class="dialog-desc">晴朗</p>
+            </div>
+            <div class="dialog-data-grid">
+                <div class="data-item">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 11V5a2 2 0 10-4 0v6a4 4 0 104 0z" fill="currentColor"/></svg>
+                    <span>气温 (高/低)</span>
+                    <strong id="dialog-temp">--° / --°</strong>
+                </div>
+                <div class="data-item">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2c-4 4.5-6 7.5-6 10.5a6 6 0 0 0 12 0c0-3-2-6-6-10.5z" fill="currentColor"/></svg>
+                    <span>平均相对湿度</span>
+                    <strong id="dialog-humidity">--%</strong>
+                </div>
+                <div class="data-item">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2M9.6 4.6A2 2 0 1 1 11 8H2M12.6 19.4A2 2 0 1 0 14 16H2" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+                    <span>最大风速</span>
+                    <strong id="dialog-wind">-- km/h</strong>
+                </div>
+                <div class="data-item">
+                    <svg class="svg-icon" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="5" fill="currentColor" />
+                        <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    <span>日照强度</span>
+                    <strong id="dialog-sun">--</strong>
+                </div>
+                <div class="data-item full-width highlight-item">
+                    <svg class="svg-icon text-outdoor" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" fill="currentColor"/></svg>
+                    <span class="text-outdoor">室外综合体感预测 (最高 / 最低)</span>
+                    <strong id="dialog-outdoor" class="text-outdoor">--° / --°</strong>
+                </div>
+                <div class="data-item full-width">
+                    <svg class="svg-icon text-indoor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" fill="currentColor"/></svg>
+                    <span class="text-indoor">室内综合体感预测 (最高 / 最低)</span>
+                    <strong id="dialog-indoor" class="text-indoor">--°</strong>
+                </div>
+            </div>
+            <div class="dialog-action">
+                <button id="btn-close-dialog" class="md-button">确认</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- 依赖库 -->
+    <script src="./lib/leaflet.js"></script>
+    <script src="./lib/chart.js"></script>
+    <script src="./main.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed', err));
+            });
+        }
+    </script>
+</body>
+</html>

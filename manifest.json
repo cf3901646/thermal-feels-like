@@ -1,0 +1,17 @@
+{
+  "name": "Thermal Feels Like",
+  "short_name": "体感温度计",
+  "description": "基于物理模型的高精度室内外体感温度计",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f2f2f7",
+  "theme_color": "#f2f2f7",
+  "icons": [
+    {
+      "src": "app-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

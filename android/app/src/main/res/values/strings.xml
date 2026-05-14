@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">体感温度计</string>
+    <string name="title_activity_main">体感温度计</string>
+    <string name="package_name">com.morandi.thermalmeter</string>
+    <string name="custom_url_scheme">com.morandi.thermalmeter</string>
+</resources>
