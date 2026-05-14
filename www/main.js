@@ -8,6 +8,9 @@
  * - 高清中文高德地图
  * - 移动端原生适配 (Capacitor)
  */
+// [同步测试信号] 如果您在手机上看到背景变红，说明同步成功
+document.documentElement.style.background = 'red'; 
+
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 沉浸式状态栏控制 (Capacitor 原生调用)

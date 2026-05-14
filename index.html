@@ -232,13 +232,20 @@
     <script src="./lib/chart.js"></script>
     <script src="./main.js"></script>
     <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Service Worker registered'))
-                    .catch(err => console.log('Service Worker registration failed', err));
-            });
-        }
+        // [自杀脚本] 彻底清除 Service Worker 缓存，防止旧代码残留
+        (async () => {
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (let registration of registrations) {
+                    await registration.unregister();
+                }
+            }
+            const cacheNames = await caches.keys();
+            for (let cacheName of cacheNames) {
+                await caches.delete(cacheName);
+            }
+            console.log('Cache and Service Workers cleared.');
+        })();
     </script>
 </body>
 </html>

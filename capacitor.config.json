@@ -1,6 +1,6 @@
 {
-  "appId": "com.morandi.thermalmeter",
-  "appName": "体感温度计",
+  "appId": "com.morandi.diagnostic",
+  "appName": "体感测试版",
   "webDir": "www",
   "bundledWebRuntime": false
 }
