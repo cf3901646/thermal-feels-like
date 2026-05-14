@@ -17,7 +17,7 @@
     --color-indoor: #8ba28a;
 
     --radius-lg: 28px;
-    --radius-md: 16px;
+    --radius-md: 28px; /* 与 lg 统一，所有主卡片圆角一致 */
     --radius-sm: 10px;
     
     --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
