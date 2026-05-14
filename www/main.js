@@ -19,8 +19,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             await StatusBar.setOverlaysWebView({ overlay: true });
             // 2. 设为透明
             await StatusBar.setBackgroundColor({ color: '#00000000' });
-            // 3. 根据背景明暗自动切换图标颜色 (深色模式建议用 LIGHT)
-            await StatusBar.setStyle({ style: 'DARK' });
+            // 3. 浅色背景 → 使用深色（灰色）图标，确保清晰可见
+            await StatusBar.setStyle({ style: 'LIGHT' });
         } catch (e) { console.warn('StatusBar plugin error:', e); }
     }
 
