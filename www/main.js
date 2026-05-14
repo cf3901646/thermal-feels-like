@@ -23,37 +23,47 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) { console.warn('StatusBar plugin error:', e); }
     }
 
-    // 智能安全高度适配器 (原生 + CSS 双重验证)
+    // 智能安全高度适配器 (原生补丁后，通过轮询探测 CSS env 变量)
     async function adaptSafeTop() {
-        try {
-            // 1. 优先调用 Capacitor 原生接口获取高度
-            const info = await StatusBar.getHeight();
-            if (info && info.height > 0) {
-                // 关键修正：将原生返回的物理像素转换为网页使用的逻辑像素
-                const logicalHeight = info.height / window.devicePixelRatio;
-                document.documentElement.style.setProperty('--js-safe-top', logicalHeight + 'px');
-                console.log('Native Logical Height:', logicalHeight);
-                return;
+        let attempts = 0;
+        const maxAttempts = 20; // 最多探测 2 秒 (20 * 100ms)
+        
+        const poll = () => {
+            const div = document.createElement('div');
+            div.style.paddingTop = 'env(safe-area-inset-top)';
+            div.style.position = 'fixed';
+            div.style.visibility = 'hidden';
+            document.body.appendChild(div);
+            const style = window.getComputedStyle(div);
+            const paddingTop = parseFloat(style.paddingTop);
+            document.body.removeChild(div);
+
+            if (paddingTop > 0) {
+                // 探测成功，注入变量
+                document.documentElement.style.setProperty('--js-safe-top', paddingTop + 'px');
+                console.log('Safe Top Detected:', paddingTop);
+                return true;
             }
-        } catch (e) {
-            console.warn('Native Height API failed, falling back to CSS detection:', e);
-        }
+            return false;
+        };
 
-        // 2. 原生接口不可用时，降级使用 CSS env() 探测
-        const div = document.createElement('div');
-        div.style.paddingTop = 'env(safe-area-inset-top)';
-        div.style.position = 'fixed';
-        div.style.visibility = 'hidden';
-        document.body.appendChild(div);
-        const style = window.getComputedStyle(div);
-        const paddingTop = parseFloat(style.paddingTop);
-        document.body.removeChild(div);
+        // 首次尝试
+        if (poll()) return;
 
-        const safeTop = paddingTop > 0 ? paddingTop : 0; // 适配模式下保底归零
-        document.documentElement.style.setProperty('--js-safe-top', safeTop + 'px');
+        // 开启轮询
+        const interval = setInterval(() => {
+            attempts++;
+            if (poll() || attempts >= maxAttempts) {
+                clearInterval(interval);
+                if (attempts >= maxAttempts) {
+                    console.warn('Safe Top detection timeout, using fallback 0.');
+                    document.documentElement.style.setProperty('--js-safe-top', '0px');
+                }
+            }
+        }, 100);
     }
     
-    // 在状态栏初始化后执行适配
+    // 初始化流程
     (async () => {
         await initStatusBar();
         await adaptSafeTop();
