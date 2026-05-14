@@ -58,7 +58,7 @@ body {
     min-height: 100vh;
     align-items: flex-start;
     /* 核心沉浸：由 WindowInsetsCompat 直接注入 --native-safe-top，精准可靠 */
-    padding-top: calc(var(--native-safe-top, 28px) + 5.0rem);
+    padding-top: calc(var(--native-safe-top, 28px) + 4.5rem);
     padding-left: 1rem;
     padding-right: 1rem;
     padding-bottom: 2rem;
