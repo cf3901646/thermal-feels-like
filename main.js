@@ -23,23 +23,39 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) { console.warn('StatusBar plugin error:', e); }
     }
 
-    // 智能安全高度嗅探器
-    function detectSafeTop() {
+    // 智能安全高度适配器 (原生 + CSS 双重验证)
+    async function adaptSafeTop() {
+        try {
+            // 1. 优先调用 Capacitor 原生接口获取高度
+            const info = await StatusBar.getHeight();
+            if (info && info.height > 0) {
+                document.documentElement.style.setProperty('--js-safe-top', info.height + 'px');
+                console.log('Native Status Bar Height:', info.height);
+                return;
+            }
+        } catch (e) {
+            console.warn('Native Height API failed, falling back to CSS detection:', e);
+        }
+
+        // 2. 原生接口不可用时，降级使用 CSS env() 探测
         const div = document.createElement('div');
         div.style.paddingTop = 'env(safe-area-inset-top)';
         div.style.position = 'fixed';
         div.style.visibility = 'hidden';
         document.body.appendChild(div);
-        
         const style = window.getComputedStyle(div);
         const paddingTop = parseFloat(style.paddingTop);
         document.body.removeChild(div);
 
-        // 如果系统返回了有效值，就用系统的；否则启用更安全的保底 (44px, 适配异形屏)
-        const safeTop = paddingTop > 0 ? paddingTop : 44;
+        const safeTop = paddingTop > 0 ? paddingTop : 0; // 适配模式下保底归零
         document.documentElement.style.setProperty('--js-safe-top', safeTop + 'px');
     }
-    detectSafeTop();
+    
+    // 在状态栏初始化后执行适配
+    (async () => {
+        await initStatusBar();
+        await adaptSafeTop();
+    })();
 
     // ==========================================
     // 1. 全局变量与 DOM 元素
