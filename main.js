@@ -25,10 +25,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 智能安全高度适配器 (原生补丁后，通过轮询探测 CSS env 变量)
     async function adaptSafeTop() {
+        // 0. 终极检查：是否已经由原生 Java 层强行注入了高度？
+        if (window.NATIVE_SAFE_TOP) {
+            document.documentElement.style.setProperty('--js-safe-top', window.NATIVE_SAFE_TOP + 'px');
+            console.log('Using Ultimate Native Injection Height:', window.NATIVE_SAFE_TOP);
+            return;
+        }
+
         let attempts = 0;
-        const maxAttempts = 20; // 最多探测 2 秒 (20 * 100ms)
+        const maxAttempts = 20; // 最多探测 2 秒
         
         const poll = () => {
+            // 再次检查注入值 (防止注入发生得比 JS 执行晚)
+            if (window.NATIVE_SAFE_TOP) {
+                document.documentElement.style.setProperty('--js-safe-top', window.NATIVE_SAFE_TOP + 'px');
+                return true;
+            }
+
             const div = document.createElement('div');
             div.style.paddingTop = 'env(safe-area-inset-top)';
             div.style.position = 'fixed';
@@ -39,9 +52,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.body.removeChild(div);
 
             if (paddingTop > 0) {
-                // 探测成功，注入变量
                 document.documentElement.style.setProperty('--js-safe-top', paddingTop + 'px');
-                console.log('Safe Top Detected:', paddingTop);
+                console.log('Safe Top Detected via CSS:', paddingTop);
                 return true;
             }
             return false;
@@ -55,12 +67,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             attempts++;
             if (poll() || attempts >= maxAttempts) {
                 clearInterval(interval);
-                if (attempts >= maxAttempts) {
+                if (attempts >= maxAttempts && !window.NATIVE_SAFE_TOP) {
                     console.warn('Safe Top detection timeout, using fallback 0.');
                     document.documentElement.style.setProperty('--js-safe-top', '0px');
                 }
             }
-        }, 100);
+        }, 150);
     }
     
     // 初始化流程
