@@ -23,25 +23,39 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) { console.warn('StatusBar plugin error:', e); }
     }
 
-    // 智能安全高度适配器 (原生补丁后，通过轮询探测 CSS env 变量)
-    async function adaptSafeTop() {
-        // 0. 终极检查：是否已经由原生 Java 层强行注入了高度？
-        if (window.NATIVE_SAFE_TOP) {
-            document.documentElement.style.setProperty('--js-safe-top', window.NATIVE_SAFE_TOP + 'px');
-            console.log('Using Ultimate Native Injection Height:', window.NATIVE_SAFE_TOP);
-            return;
-        }
+    // 诊断面板初始化
+    function initDebugPanel() {
+        const panel = document.createElement('div');
+        panel.id = 'safe-area-debug';
+        panel.style.cssText = 'position:fixed;bottom:10px;right:10px;background:rgba(0,0,0,0.7);color:white;padding:8px;border-radius:8px;font-size:10px;z-index:9999;pointer-events:none;font-family:monospace;line-height:1.4;';
+        panel.innerHTML = `
+            <div>JS Safe Top: <span id="debug-js-val">-</span></div>
+            <div>Native Injection: <span id="debug-native-val">-</span></div>
+            <div>CSS env(): <span id="debug-env-val">-</span></div>
+            <div>DPR: ${window.devicePixelRatio}</div>
+        `;
+        document.body.appendChild(panel);
+    }
 
+    // 智能安全高度适配器 (诊断增强版)
+    async function adaptSafeTop() {
+        initDebugPanel();
+        
         let attempts = 0;
-        const maxAttempts = 20; // 最多探测 2 秒
+        const maxAttempts = 30; // 探测 3 秒
         
         const poll = () => {
-            // 再次检查注入值 (防止注入发生得比 JS 执行晚)
+            const debugJs = document.getElementById('debug-js-val');
+            const debugNative = document.getElementById('debug-native-val');
+            const debugEnv = document.getElementById('debug-env-val');
+
+            // 1. 检查原生注入
             if (window.NATIVE_SAFE_TOP) {
                 document.documentElement.style.setProperty('--js-safe-top', window.NATIVE_SAFE_TOP + 'px');
-                return true;
+                if (debugNative) debugNative.innerText = window.NATIVE_SAFE_TOP + 'px';
             }
 
+            // 2. 检查 CSS env()
             const div = document.createElement('div');
             div.style.paddingTop = 'env(safe-area-inset-top)';
             div.style.position = 'fixed';
@@ -51,27 +65,26 @@ document.addEventListener('DOMContentLoaded', async () => {
             const paddingTop = parseFloat(style.paddingTop);
             document.body.removeChild(div);
 
-            if (paddingTop > 0) {
-                document.documentElement.style.setProperty('--js-safe-top', paddingTop + 'px');
-                console.log('Safe Top Detected via CSS:', paddingTop);
+            if (debugEnv) debugEnv.innerText = paddingTop + 'px';
+
+            // 3. 决定最终值
+            let finalTop = 0;
+            if (window.NATIVE_SAFE_TOP) finalTop = window.NATIVE_SAFE_TOP;
+            else if (paddingTop > 0) finalTop = paddingTop;
+
+            if (finalTop > 0) {
+                document.documentElement.style.setProperty('--js-safe-top', finalTop + 'px');
+                if (debugJs) debugJs.innerText = finalTop + 'px';
                 return true;
             }
             return false;
         };
 
-        // 首次尝试
-        if (poll()) return;
-
-        // 开启轮询
+        // 持续轮询更新面板数据
         const interval = setInterval(() => {
             attempts++;
-            if (poll() || attempts >= maxAttempts) {
-                clearInterval(interval);
-                if (attempts >= maxAttempts && !window.NATIVE_SAFE_TOP) {
-                    console.warn('Safe Top detection timeout, using fallback 0.');
-                    document.documentElement.style.setProperty('--js-safe-top', '0px');
-                }
-            }
+            poll(); // 即使返回 true 也继续轮询，以便观察面板变化
+            if (attempts >= maxAttempts) clearInterval(interval);
         }, 150);
     }
     
