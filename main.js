@@ -35,8 +35,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const paddingTop = parseFloat(style.paddingTop);
         document.body.removeChild(div);
 
-        // 如果系统返回了有效值，就用系统的；否则启用温和保底 (28px)
-        const safeTop = paddingTop > 0 ? paddingTop : 28;
+        // 如果系统返回了有效值，就用系统的；否则启用更安全的保底 (44px, 适配异形屏)
+        const safeTop = paddingTop > 0 ? paddingTop : 44;
         document.documentElement.style.setProperty('--js-safe-top', safeTop + 'px');
     }
     detectSafeTop();
