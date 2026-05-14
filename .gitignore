@@ -1,0 +1,7 @@
+node_modules/
+android/app/build/
+android/app/src/main/assets/public/
+www/
+history_backups/
+.DS_Store
+*.log
