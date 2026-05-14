@@ -416,7 +416,7 @@ body {
 .charts-group {
     display: flex;
     flex-direction: column;
-    gap: 0.6rem; /* 随全局间距同步拉大 */
+    gap: var(--section-gap); /* 统一全局板块间距 */
 }
 .chart-card { display: flex; flex-direction: column; padding: 1.25rem; }
 .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
