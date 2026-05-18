@@ -290,66 +290,35 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             let onlineResults = [];
-            const isChinese = /[\u4e00-\u9fa5]/.test(query);
 
+            // 本地未命中时，统一使用 Open-Meteo Geocoding 兜底（无需 API Key，支持中英文，国内可直连）
+            // 移除了对 Nominatim 的依赖（国内网络慢、不稳定，且违反开源友好原则）
             if (localResults.length === 0) {
-                if (!isChinese) {
-                    // A. 输入为拼音/英文：通过国内可高速直连的 Open-Meteo Geocoding 进行在线拼音兜底
-                    try {
-                        const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 4000); // 4秒超时保护
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-                        const resp = await fetch(
-                            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=10&language=zh`,
-                            { signal: controller.signal }
-                        );
-                        const data = await resp.json();
-                        clearTimeout(timeoutId);
+                    const resp = await fetch(
+                        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=10&language=zh`,
+                        { signal: controller.signal }
+                    );
+                    const data = await resp.json();
+                    clearTimeout(timeoutId);
 
-                        if (data && data.results) {
-                            onlineResults = data.results.map(res => {
-                                const subParts = [res.admin1, res.country].filter(Boolean);
-                                return {
-                                    name: res.name,
-                                    sub: subParts.join(', ') || '全球地点',
-                                    lat: res.latitude,
-                                    lon: res.longitude
-                                };
-                            });
-                        }
-                    } catch (e) {
-                        console.warn('Open-Meteo 在线拼音搜索出错', e);
+                    if (data && data.results) {
+                        onlineResults = data.results.map(res => {
+                            // 优先显示省级 + 国家，结构清晰
+                            const subParts = [res.admin1, res.country].filter(Boolean);
+                            return {
+                                name: res.name,
+                                sub: subParts.join(', ') || '全球地点',
+                                lat: res.latitude,
+                                lon: res.longitude
+                            };
+                        });
                     }
-                } else {
-                    // B. 输入为中文汉字：直接无缝启用解除拉黑封锁后的 OSM Nominatim 极其强悍的中文全文模糊检索（弃用 Open-Meteo 以免发生汉字乱码）
-                    console.log(`[Geo Search] 触发 Nominatim 终极中文全文模糊检索，检索词: ${query}`);
-                    try {
-                        const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 4000);
-                        // [关键点] 彻底删除了被全网拉黑的 email=thermal_app@example.com 参数，彻底重归 100% 畅通与极速中文检索！
-                        const resp = await fetch(
-                            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&accept-language=zh-CN&addressdetails=1`,
-                            { signal: controller.signal }
-                        );
-                        const data = await resp.json();
-                        clearTimeout(timeoutId);
-
-                        if (data && Array.isArray(data)) {
-                            onlineResults = data.map(res => {
-                                const addr = res.address || {};
-                                const name = addr.district || addr.county || addr.city || addr.municipality || addr.town || res.display_name.split(',')[0];
-                                const sub = [addr.city, addr.province, addr.country].filter(i => i && i !== name).slice(0, 2).join(', ');
-                                return {
-                                    name: name,
-                                    sub: sub || '全球定位',
-                                    lat: parseFloat(res.lat),
-                                    lon: parseFloat(res.lon)
-                                };
-                            });
-                        }
-                    } catch (err2) {
-                        console.error('Nominatim 终极中文检索通道超时或失败', err2);
-                    }
+                } catch (e) {
+                    console.warn('[搜索] Open-Meteo 在线搜索超时或失败', e);
                 }
             }
 
