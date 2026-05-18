@@ -19,8 +19,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             await StatusBar.setOverlaysWebView({ overlay: true });
             // 2. 设为透明
             await StatusBar.setBackgroundColor({ color: '#00000000' });
-            // 3. 浅色背景 → 必须使用 'DARK' (Dark text) 才能显示深色图标
-            await StatusBar.setStyle({ style: 'DARK' });
+            // 3. 浅色背景 → 交由 MainActivity 原生层 WindowInsetsControllerCompat 控制，不在 JS 层覆盖
+            // await StatusBar.setStyle({ style: 'DARK' });
         } catch (e) { console.warn('StatusBar plugin error:', e); }
     }
 
@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         dialogOutdoor: document.getElementById('dialog-outdoor'),
         btnCloseDialog: document.getElementById('btn-close-dialog'),
         btnCloseIcon: document.getElementById('close-dialog-icon'),
-        
+
         // 当前天气元素
         currentSection: document.getElementById('current-weather-section'),
         currentIcon: document.getElementById('current-icon'),
@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentWind: document.getElementById('current-wind'),
         currentRadiation: document.getElementById('current-radiation'),
         currentRadLevel: document.getElementById('current-rad-level'),
-        
+
         // 地理位置管理中心
         locBar: document.getElementById('city-display-clicker'),
         locPanel: document.getElementById('location-panel'),
@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         searchLoading: document.getElementById('search-loading'),
         searchResults: document.getElementById('search-results'),
         favList: document.getElementById('favorites-list'),
-        
+
         // 下拉刷新相关
         ptrContainer: document.getElementById('pull-to-refresh'),
         ptrIcon: document.querySelector('.ptr-icon'),
@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     els.btnCloseDialog.addEventListener('click', () => els.dialog.close());
     els.btnCloseIcon.addEventListener('click', () => els.dialog.close());
     els.dialog.addEventListener('click', (e) => { if (e.target === els.dialog) els.dialog.close(); });
-    
+
     els.locBar.addEventListener('click', () => {
         els.locPanel.classList.toggle('hidden');
         els.mapWrap.classList.add('hidden'); // 打开面板时关闭地图
@@ -152,25 +152,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     function getWeatherDescription(code) {
         // 返回 [描述, 本地图标文件名]
         const map = {
-            0: { desc: '晴朗', fluent: 'sunny' }, 
+            0: { desc: '晴朗', fluent: 'sunny' },
             1: { desc: '晴间多云', fluent: 'partly_cloudy' },
-            2: { desc: '多云', fluent: 'partly_cloudy' }, 
+            2: { desc: '多云', fluent: 'partly_cloudy' },
             3: { desc: '阴天', fluent: 'cloudy' },
-            45: { desc: '有雾', fluent: 'foggy' }, 
+            45: { desc: '有雾', fluent: 'foggy' },
             48: { desc: '雾霾', fluent: 'foggy' },
-            51: { desc: '细雨', fluent: 'rainy' }, 
+            51: { desc: '细雨', fluent: 'rainy' },
             53: { desc: '小雨', fluent: 'rainy' },
             55: { desc: '中雨', fluent: 'rainy' },
             56: { desc: '冻细雨', fluent: 'snowy' },
             57: { desc: '强冻细雨', fluent: 'snowy' },
-            61: { desc: '小雨', fluent: 'rainy' }, 
-            63: { desc: '中雨', fluent: 'rainy' }, 
+            61: { desc: '小雨', fluent: 'rainy' },
+            63: { desc: '中雨', fluent: 'rainy' },
             65: { desc: '大雨', fluent: 'rainy' },
             66: { desc: '冻雨', fluent: 'snowy' },
             67: { desc: '强冻雨', fluent: 'snowy' },
-            71: { desc: '小雪', fluent: 'snowy' }, 
+            71: { desc: '小雪', fluent: 'snowy' },
             73: { desc: '中雪', fluent: 'snowy' },
-            75: { desc: '大雪', fluent: 'snowy' }, 
+            75: { desc: '大雪', fluent: 'snowy' },
             77: { desc: '雪粒', fluent: 'snowy' },
             80: { desc: '阵雨', fluent: 'rainy' },
             81: { desc: '中阵雨', fluent: 'rainy' },
@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             85: { desc: '阵雪', fluent: 'snowy' },
             86: { desc: '强阵雪', fluent: 'snowy' },
             95: { desc: '雷阵雨', fluent: 'stormy' },
-            96: { desc: '雷雨伴冰雹', fluent: 'stormy' }, 
+            96: { desc: '雷雨伴冰雹', fluent: 'stormy' },
             99: { desc: '强雷雨伴冰雹', fluent: 'stormy' }
         };
         return map[code] || { desc: `代码 ${code}`, fluent: 'partly_cloudy' };
@@ -191,7 +191,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- 城市名本土化展示格式化器 ---
     function formatCityName(name) {
         if (!name) return name;
-        
+
         // 排除已经带有中国常见行政后缀的情况（市、区、县、盟、旗）
         // 剔除对“州”字的过度拦截，确保苏州、常州等带“州”城市不会被误杀
         const suffixRegex = /[市区县盟旗]$/;
@@ -199,12 +199,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 中国 30 个少数民族自治州专属高精匹配库（由于它们在数据库以双字如“延边”、“大理”存储，应补齐“州”）
         const autonomousStates = [
-            '延边', '湘西', '大理', '恩施', '阿坝', '甘孜', '凉山', '临夏', '甘南', 
-            '黄南', '海北', '海西', '果洛', '玉树', '博尔塔拉', '巴音郭楞', '克孜勒苏', 
-            '伊犁', '昌吉', '德宏', '怒江', '迪庆', '西双版纳', '楚雄', '红河', 
+            '延边', '湘西', '大理', '恩施', '阿坝', '甘孜', '凉山', '临夏', '甘南',
+            '黄南', '海北', '海西', '果洛', '玉树', '博尔塔拉', '巴音郭楞', '克孜勒苏',
+            '伊犁', '昌吉', '德宏', '怒江', '迪庆', '西双版纳', '楚雄', '红河',
             '文山', '黔东南', '黔南', '黔西南'
         ];
-        
+
         // 如果属于自治州，补齐“州”
         if (autonomousStates.includes(name)) return name + '州';
 
@@ -221,7 +221,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const cityItem = window.CHINA_CITIES.find(item => item[0] === name);
         if (cityItem) {
             const province = cityItem[1];
-            
+
             // 1. 四大直辖市判定
             const zxs = ['北京', '上海', '天津', '重庆'];
             if (zxs.includes(province)) {
@@ -231,7 +231,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     return name + '区'; // 直辖市下辖区，补齐“区”
                 }
             }
-            
+
             // 2. 广州、深圳的市辖区判定
             if (province === '广东') {
                 const gzszDistricts = ['天河', '越秀', '荔湾', '海珠', '白云', '番禺', '花都', '南沙', '增城', '从化', '福田', '罗湖', '南山', '宝安', '龙岗', '盐田', '龙华', '坪山', '光明'];
@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     return name + '区';
                 }
             }
-            
+
             // 3. 成都的市辖区与县级市判定
             if (province === '四川') {
                 const cdDistricts = ['武侯', '锦江', '青羊', '金牛', '成华', '龙泉驿', '青白江', '新都', '温江', '双流', '郫都'];
@@ -290,66 +290,35 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             let onlineResults = [];
-            const isChinese = /[\u4e00-\u9fa5]/.test(query);
 
+            // 本地未命中时，统一使用 Open-Meteo Geocoding 兜底（无需 API Key，支持中英文，国内可直连）
+            // 移除了对 Nominatim 的依赖（国内网络慢、不稳定，且违反开源友好原则）
             if (localResults.length === 0) {
-                if (!isChinese) {
-                    // A. 输入为拼音/英文：通过国内可高速直连的 Open-Meteo Geocoding 进行在线拼音兜底
-                    try {
-                        const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 4000); // 4秒超时保护
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-                        const resp = await fetch(
-                            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=10&language=zh`,
-                            { signal: controller.signal }
-                        );
-                        const data = await resp.json();
-                        clearTimeout(timeoutId);
+                    const resp = await fetch(
+                        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=10&language=zh`,
+                        { signal: controller.signal }
+                    );
+                    const data = await resp.json();
+                    clearTimeout(timeoutId);
 
-                        if (data && data.results) {
-                            onlineResults = data.results.map(res => {
-                                const subParts = [res.admin1, res.country].filter(Boolean);
-                                return {
-                                    name: res.name,
-                                    sub: subParts.join(', ') || '全球地点',
-                                    lat: res.latitude,
-                                    lon: res.longitude
-                                };
-                            });
-                        }
-                    } catch (e) {
-                        console.warn('Open-Meteo 在线拼音搜索出错', e);
+                    if (data && data.results) {
+                        onlineResults = data.results.map(res => {
+                            // 优先显示省级 + 国家，结构清晰
+                            const subParts = [res.admin1, res.country].filter(Boolean);
+                            return {
+                                name: res.name,
+                                sub: subParts.join(', ') || '全球地点',
+                                lat: res.latitude,
+                                lon: res.longitude
+                            };
+                        });
                     }
-                } else {
-                    // B. 输入为中文汉字：直接无缝启用解除拉黑封锁后的 OSM Nominatim 极其强悍的中文全文模糊检索（弃用 Open-Meteo 以免发生汉字乱码）
-                    console.log(`[Geo Search] 触发 Nominatim 终极中文全文模糊检索，检索词: ${query}`);
-                    try {
-                        const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 4000);
-                        // [关键点] 彻底删除了被全网拉黑的 email=thermal_app@example.com 参数，彻底重归 100% 畅通与极速中文检索！
-                        const resp = await fetch(
-                            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&accept-language=zh-CN&addressdetails=1`,
-                            { signal: controller.signal }
-                        );
-                        const data = await resp.json();
-                        clearTimeout(timeoutId);
-
-                        if (data && Array.isArray(data)) {
-                            onlineResults = data.map(res => {
-                                const addr = res.address || {};
-                                const name = addr.district || addr.county || addr.city || addr.municipality || addr.town || res.display_name.split(',')[0];
-                                const sub = [addr.city, addr.province, addr.country].filter(i => i && i !== name).slice(0, 2).join(', ');
-                                return {
-                                    name: name,
-                                    sub: sub || '全球定位',
-                                    lat: parseFloat(res.lat),
-                                    lon: parseFloat(res.lon)
-                                };
-                            });
-                        }
-                    } catch (err2) {
-                        console.error('Nominatim 终极中文检索通道超时或失败', err2);
-                    }
+                } catch (e) {
+                    console.warn('[搜索] Open-Meteo 在线搜索超时或失败', e);
                 }
             }
 
@@ -360,13 +329,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const isDup = combined.some(locRes => {
                     const locName = locRes.name;
                     const onName = formattedOnName;
-                    
+
                     // 1. 名字相似度判定：前两个字符相同，或一方是另一方的前缀（如“无锡市”包含“无锡”）
                     const nameMatch = locName.startsWith(onName) || onName.startsWith(locName) || locName.substring(0, 2) === onName.substring(0, 2);
-                    
+
                     // 2. 地理距离判定：经纬度差均在 0.08 度 (约 8 公里) 以内
                     const distMatch = Math.abs(locRes.lat - onRes.lat) < 0.08 && Math.abs(locRes.lon - onRes.lon) < 0.08;
-                    
+
                     return nameMatch && distMatch;
                 });
                 if (!isDup) {
@@ -465,7 +434,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (cache) nameToCheck = cache.cityName;
         }
         if (!nameToCheck) return;
-        
+
         const favs = loadFavorites();
         const isFav = favs.some(f => f.name === nameToCheck);
         els.btnFav.querySelector('.star-icon').classList.toggle('active', isFav);
@@ -500,12 +469,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 2. 动态环境补偿 (包含夏季通风与冬季保温)
         const ws = ws_kmh / 3.6;
-        let envBonus = 0; 
-        
+        let envBonus = 0;
+
         if (Ta >= 25) {
             // 夏季：通风模式下，室内保留 40% 的风力，补偿流失的 60% 风冷收益
             const windRetention = 0.4;
-            envBonus = Math.min(ws * (1 - windRetention) * 0.5, 3.0); 
+            envBonus = Math.min(ws * (1 - windRetention) * 0.5, 3.0);
         } else if (Ta <= 15) {
             // 冬季：保温模式。室内屏蔽了寒风。
             // 我们通过补回 (气温 - 风冷体感) 的差值，来体现墙体的防风保温作用
@@ -516,7 +485,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 3. 最终计算
         let indoorAT = outdoorAT - deltaTa + envBonus;
-        
+
         // 4. 边界保护
         return Math.min(Math.max(indoorAT, Ta_indoor - 2), Ta_indoor + 5);
     }
@@ -544,7 +513,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ==========================================
     function initOrUpdateCharts(labels, indoorData, outdoorData) {
         if (!labels || labels.length === 0) return;
-        
+
         // 容错：如果数据全为0且不是刻意为之，可能数据未加载，暂不渲染
         const hasData = outdoorData.max.some(v => v !== 0);
         if (!hasData) return;
@@ -556,19 +525,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             inGradFill: 'rgba(139,162,138,0.15)',
             inGradBase: 'rgba(139,162,138,0.02)',
             inMaxBorder: '#8ba28a',
-            inMinBorder: '#7A90A4',
+            inMinBorder: '#92A8B9',
             outGradFill: 'rgba(209,144,144,0.15)',
             outGradBase: 'rgba(209,144,144,0.02)',
             outMaxBorder: '#d19090',
-            outMinBorder: '#D9A0A0'
+            outMinBorder: '#CCA990'
         };
 
         const commonOptions = {
             responsive: true, maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             plugins: {
-                legend: { 
-                    position: 'bottom', 
+                legend: {
+                    position: 'bottom',
                     labels: { usePointStyle: true, boxWidth: 8, font: { size: 12, family: "'Inter', sans-serif" } }
                 },
                 tooltip: {
@@ -600,7 +569,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const gradIndoor = ctxIndoor.createLinearGradient(0, 0, 0, 200);
             gradIndoor.addColorStop(0, cfg.inGradFill);
             gradIndoor.addColorStop(1, cfg.inGradBase);
-            
+
             indoorChartInstance = new Chart(ctxIndoor, {
                 type: 'line',
                 data: {
@@ -620,7 +589,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const gradOutdoor = ctxOutdoor.createLinearGradient(0, 0, 0, 200);
             gradOutdoor.addColorStop(0, cfg.outGradFill);
             gradOutdoor.addColorStop(1, cfg.outGradBase);
-            
+
             outdoorChartInstance = new Chart(ctxOutdoor, {
                 type: 'line',
                 data: {
@@ -639,7 +608,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function renderDailyCards(daily) {
         els.dailyCards.innerHTML = '';
-        
+
         // 计算 8 日内的全局最低和最高温，用于区间条比例计算
         const globalMin = Math.min(...daily.temperature_2m_min);
         const globalMax = Math.max(...daily.temperature_2m_max);
@@ -649,10 +618,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const dateObj = formatDateStr(daily.time[i]);
             const weather = getWeatherDescription(daily.weather_code[i]);
             const isToday = (i === 0);
-            
+
             const minT = daily.temperature_2m_min[i];
             const maxT = daily.temperature_2m_max[i];
-            
+
             // 计算区间条的偏移和宽度百分比
             const leftOffset = ((minT - globalMin) / totalRange) * 100;
             const barWidth = ((maxT - minT) / totalRange) * 100;
@@ -689,7 +658,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const start = Math.max(0, currentIndex - 3);
         const end = Math.min(hourly.time.length - 1, currentIndex + 20);
-        
+
         const colWidth = 75;
         const totalCols = end - start + 1;
         const totalWidth = totalCols * colWidth;
@@ -697,7 +666,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const wrapper = document.createElement('div');
         wrapper.className = 'hourly-unified-wrapper';
         wrapper.style.width = `${totalWidth}px`;
-        
+
         const colsWrapper = document.createElement('div');
         colsWrapper.className = 'hourly-columns-wrapper';
 
@@ -707,7 +676,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         for (let i = start; i <= end; i++) {
             const isNow = (i === currentIndex);
             const time = new Date(hourly.time[i]);
-            
+
             // 核心同步：若是“现在”，强制使用实时观测值，否则使用预报值
             const weather = (isNow && current) ? getWeatherDescription(current.weather_code) : getWeatherDescription(hourly.weather_code[i]);
             const app = (isNow && current) ? current.apparent_temperature : hourly.apparent_temperature[i];
@@ -719,9 +688,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             // 使用 12 小时滑动平均代表墙体温度 (Thermal Mass)
             const wallTa = calcMovingAverage(hourly.temperature_2m, i, 12);
 
-            const outAT = calcOutdoorATWithSun(app, ta, rad/1000*3.6, isDay);
+            const outAT = calcOutdoorATWithSun(app, ta, rad / 1000 * 3.6, isDay);
             const inAT = calcIndoorAT(app, ta, ws, 0, isDay, wallTa);
-            
+
             outData.push(outAT);
             inData.push(inAT);
 
@@ -747,22 +716,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         const canvas = document.createElement('canvas');
         canvas.className = 'hourly-sparkline-canvas';
         const dpr = window.devicePixelRatio || 1;
-        
+
         canvas.width = totalWidth * dpr;
         canvas.height = canvasHeight * dpr;
         canvas.style.width = `${totalWidth}px`;
         canvas.style.height = `${canvasHeight}px`;
-        canvas.style.top = `${canvasTop}px`; 
-        
+        canvas.style.top = `${canvasTop}px`;
+
         wrapper.insertBefore(canvas, colsWrapper);
 
         const ctx = canvas.getContext('2d');
         ctx.scale(dpr, dpr);
-        
+
         const allTemps = [...outData, ...inData];
         const minT = Math.min(...allTemps);
         const maxT = Math.max(...allTemps);
-        const range = Math.max(maxT - minT, 4); 
+        const range = Math.max(maxT - minT, 4);
         const padding = 15;
         const usableHeight = canvasHeight - padding * 2;
 
@@ -779,22 +748,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (points.length < 2) return;
             ctx.beginPath();
             ctx.moveTo(points[0].x, points[0].y);
-            
+
             const tension = 0.3; // 平滑度系数
             for (let i = 0; i < points.length - 1; i++) {
                 const p1 = points[i];
                 const p2 = points[i + 1];
-                
+
                 // 计算控制点，参考前后点的走势
                 const p0 = points[i - 1] || p1;
                 const p3 = points[i + 2] || p2;
-                
+
                 const cp1x = p1.x + (p2.x - p1.x) * tension;
                 const cp1y = p1.y + (p2.y - p0.y) * tension;
-                
+
                 const cp2x = p2.x - (p2.x - p1.x) * tension;
                 const cp2y = p2.y - (p3.y - p1.y) * tension;
-                
+
                 ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
             }
             ctx.strokeStyle = color;
@@ -803,9 +772,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             ctx.stroke();
         };
 
-        drawSmoothCurve(outPts, '#d19090'); 
+        drawSmoothCurve(outPts, '#d19090');
         drawSmoothCurve(inPts, '#8ba28a');
-        
+
         // 自动滚动到当前时间：将“现在”放在视图的第二位 (对标最新截图)
         const resetScroll = () => {
             if (els.hourlyCards) {
@@ -836,12 +805,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         els.dialogDesc.textContent = weather.desc;
         els.dialogTemp.textContent = `${Math.round(d.temperature_2m_max[realIdx])}° / ${Math.round(d.temperature_2m_min[realIdx])}°`;
         els.dialogHumidity.textContent = `${Math.round(d.relative_humidity_2m_mean[realIdx])}%`;
-        
+
         const ws = d.wind_speed_10m_max[realIdx];
         els.dialogWind.textContent = `${ws.toFixed(1)} km/h`;
-        
+
         const rad = d.shortwave_radiation_sum[realIdx];
-        const avgRadW = (rad * 1000000) / (12 * 3600); 
+        const avgRadW = (rad * 1000000) / (12 * 3600);
         const radLevel = getRadiationLevel(avgRadW);
         els.dialogSun.textContent = `${rad.toFixed(1)} MJ/m² (${radLevel.label})`;
         els.dialogSun.style.color = radLevel.color;
@@ -854,7 +823,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             els.dialogOutdoor.textContent = '--';
             els.dialogIndoor.textContent = '--';
         }
-        
+
         els.dialog.showModal();
     }
 
@@ -890,7 +859,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 2. 如果本地未匹配到（例如在国外、海上或极偏远未收录区域），则使用带 3 秒超时的联网 Nominatim 接口反查作为兜底
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000); 
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
         try {
             const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=zh-CN`, { signal: controller.signal });
             const data = await resp.json();
@@ -913,7 +882,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 点击地图选点
     map.on('click', (e) => {
         myLat = e.latlng.lat; myLon = e.latlng.lng;
-        if (marker) marker.setLatLng(e.latlng); 
+        if (marker) marker.setLatLng(e.latlng);
         else marker = L.marker(e.latlng, { icon: customMapIcon }).addTo(map);
         els.mapWrap.classList.add('hidden'); // 选点后自动关闭
         fetchForecastData(myLat, myLon);
@@ -948,7 +917,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const weather = getWeatherDescription(cur.weather_code);
             els.currentIcon.innerHTML = `<img src="${getFluentIconUrl(weather.fluent)}" class="weather-icon-img-large">`;
             els.currentDesc.textContent = weather.desc;
-            
+
             const nowEpoch = new Date().getTime();
             let curIdx = 0; let minDiff = Infinity;
             if (hourly && hourly.time) {
@@ -960,7 +929,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             const wallTa = (hourly && hourly.temperature_2m) ? calcMovingAverage(hourly.temperature_2m, curIdx, 12) : cur.temperature_2m;
 
-            const outAT = calcOutdoorATWithSun(cur.apparent_temperature, cur.temperature_2m, cur.shortwave_radiation/1000*3.6, !!cur.is_day);
+            const outAT = calcOutdoorATWithSun(cur.apparent_temperature, cur.temperature_2m, cur.shortwave_radiation / 1000 * 3.6, !!cur.is_day);
             const inAT = calcIndoorAT(cur.apparent_temperature, cur.temperature_2m, cur.wind_speed_10m, 0, !!cur.is_day, wallTa);
             els.currentApparentOutdoor.textContent = `${Math.round(outAT)}°`;
             els.currentApparentIndoor.textContent = `${Math.round(inAT)}°`;
@@ -978,11 +947,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             for (let i = 0; i < hourly.time.length; i++) {
                 const date = hourly.time[i].split('T')[0];
                 if (!dailyMap[date]) dailyMap[date] = { out: [], in: [] };
-                
+
                 const wallTa = calcMovingAverage(hourly.temperature_2m, i, 12);
-                const outAT = calcOutdoorATWithSun(hourly.apparent_temperature[i], hourly.temperature_2m[i], hourly.shortwave_radiation[i]/1000*3.6, !!hourly.is_day[i]);
+                const outAT = calcOutdoorATWithSun(hourly.apparent_temperature[i], hourly.temperature_2m[i], hourly.shortwave_radiation[i] / 1000 * 3.6, !!hourly.is_day[i]);
                 const inAT = calcIndoorAT(hourly.apparent_temperature[i], hourly.temperature_2m[i], hourly.wind_speed_10m[i], 0, !!hourly.is_day[i], wallTa);
-                
+
                 dailyMap[date].out.push(outAT);
                 dailyMap[date].in.push(inAT);
             }
@@ -1008,9 +977,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const todayIdx = d.time.indexOf(todayStr);
         const startIdx = todayIdx !== -1 ? todayIdx : 1;
         const filtered = {}; for (const k in d) filtered[k] = d[k].slice(startIdx);
-        
+
         const labels = filtered.time.map(t => [formatDateStr(t).short, t === todayStr ? '今天' : formatDateStr(t).day]);
-        
+
         const outData = {
             max: filtered.time.map(t => processedDailyData[t]?.outMax || 0),
             min: filtered.time.map(t => processedDailyData[t]?.outMin || 0)
@@ -1019,22 +988,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             max: filtered.time.map(t => processedDailyData[t]?.inMax || 0),
             min: filtered.time.map(t => processedDailyData[t]?.inMin || 0)
         };
-        
+
         // 延迟 100ms 绘制图表，确保容器尺寸已稳定
         setTimeout(() => {
             initOrUpdateCharts(labels, inData, outData);
         }, 100);
-        
+
         renderDailyCards(filtered);
         if (data.hourly) renderHourlyCards(data.hourly, data.current);
-        
+
         // 显示城市和板块
         // 优先级：forcedName > cachedCityName > fetchCityName
         let cityName = forcedName || cachedCityName || await fetchCityName(lat, lon);
         cityName = formatCityName(cityName);
         els.locStatus.textContent = cityName;
         els.currentSection.style.display = 'flex';
-        
+
         updateFavStarState(cityName);
         return cityName;
     }
@@ -1053,10 +1022,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,wind_speed_10m,shortwave_radiation&hourly=temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,shortwave_radiation,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,sunrise,sunset,wind_speed_10m_max,relative_humidity_2m_max,relative_humidity_2m_min,relative_humidity_2m_mean,shortwave_radiation_sum&timezone=auto&past_days=1`;
             const resp = await fetch(url);
             const data = await resp.json();
-            
+
             const cityName = await renderWeatherData(data, lat, lon, null, forcedName);
             saveCache(data, lat, lon, cityName);
-            
+
             // 如果是下拉刷新，完成时重置动画
             if (isRefreshing) {
                 els.ptrIcon.classList.remove('spinning');
@@ -1064,8 +1033,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 setTimeout(() => { els.ptrText.textContent = '下拉刷新'; }, 300);
                 isRefreshing = false;
             }
-        } catch (err) { 
-            if (!silent) els.locStatus.textContent = '数据请求失败'; 
+        } catch (err) {
+            if (!silent) els.locStatus.textContent = '数据请求失败';
             if (isRefreshing) {
                 els.ptrIcon.classList.remove('spinning');
                 els.ptrContainer.style.height = '0';
@@ -1081,10 +1050,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (cached) {
             // 如果有缓存，瞬间加载缓存数据
             await renderWeatherData(cached.data, cached.lat, cached.lon, cached.cityName);
-            
+
             // 立即隐藏加载遮罩
             els.loading.classList.add('hidden');
-            
+
             // 后台静默刷新最新数据
             fetchForecastData(cached.lat, cached.lon, true);
         } else {
@@ -1098,19 +1067,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             const applyLocation = (lat, lon) => {
                 myLat = lat; myLon = lon;
                 map.setView([myLat, myLon], 11);
-                if (marker) marker.setLatLng([myLat, myLon]); 
+                if (marker) marker.setLatLng([myLat, myLon]);
                 else marker = L.marker([myLat, myLon], { icon: customMapIcon }).addTo(map);
                 els.mapWrap.classList.add('hidden');
-                
+
                 // 如果没有缓存，或者定位的位置发生了显著变化，则重新获取
                 if (!cached || Math.abs(cached.lat - lat) > 0.05 || Math.abs(cached.lon - lon) > 0.05) {
                     fetchForecastData(myLat, myLon, !!cached);
                 }
             };
             applyLocation(pos.coords.latitude, pos.coords.longitude);
-        }, err => { 
+        }, err => {
             if (!cached) {
-                els.locStatus.textContent = '定位失败，请手动选点'; 
+                els.locStatus.textContent = '定位失败，请手动选点';
                 els.loading.classList.add('hidden');
             }
         }, { enableHighAccuracy: true, timeout: 15000 });
@@ -1145,7 +1114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 els.ptrContainer.style.height = '60px';
                 els.ptrText.textContent = '正在刷新...';
                 els.ptrIcon.classList.add('spinning');
-                
+
                 if (myLat !== null && myLon !== null) {
                     fetchForecastData(myLat, myLon, true);
                 } else if (loadCache()) {
@@ -1181,7 +1150,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
-    
+
     // 初始化
     const initCache = loadCache();
     if (initCache) {
