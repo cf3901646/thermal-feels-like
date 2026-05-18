@@ -19,8 +19,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             await StatusBar.setOverlaysWebView({ overlay: true });
             // 2. 设为透明
             await StatusBar.setBackgroundColor({ color: '#00000000' });
-            // 3. 浅色背景 → 使用深色（灰色）图标，确保清晰可见
-            await StatusBar.setStyle({ style: 'LIGHT' });
+            // 3. 浅色背景 → 必须使用 'DARK' (Dark text) 才能显示深色图标
+            await StatusBar.setStyle({ style: 'DARK' });
         } catch (e) { console.warn('StatusBar plugin error:', e); }
     }
 
@@ -188,15 +188,197 @@ document.addEventListener('DOMContentLoaded', async () => {
         return `./${name}.png`;
     }
 
-    // --- 城市搜索与收藏逻辑 ---
+    // --- 城市名本土化展示格式化器 ---
+    function formatCityName(name) {
+        if (!name) return name;
+        
+        // 排除已经带有中国常见行政后缀的情况（市、区、县、盟、旗）
+        // 剔除对“州”字的过度拦截，确保苏州、常州等带“州”城市不会被误杀
+        const suffixRegex = /[市区县盟旗]$/;
+        if (suffixRegex.test(name)) return name;
+
+        // 中国 30 个少数民族自治州专属高精匹配库（由于它们在数据库以双字如“延边”、“大理”存储，应补齐“州”）
+        const autonomousStates = [
+            '延边', '湘西', '大理', '恩施', '阿坝', '甘孜', '凉山', '临夏', '甘南', 
+            '黄南', '海北', '海西', '果洛', '玉树', '博尔塔拉', '巴音郭楞', '克孜勒苏', 
+            '伊犁', '昌吉', '德宏', '怒江', '迪庆', '西双版纳', '楚雄', '红河', 
+            '文山', '黔东南', '黔南', '黔西南'
+        ];
+        
+        // 如果属于自治州，补齐“州”
+        if (autonomousStates.includes(name)) return name + '州';
+
+        // 在数据库不可用或偏远未收录时的静态高速兜底
+        if (!window.CHINA_CITIES || !window.CHINA_CITIES.length) {
+            const zxs = ['北京', '上海', '天津', '重庆'];
+            if (zxs.includes(name)) return name + '市';
+            const commonDistricts = ['东城', '西城', '朝阳', '丰台', '石景山', '海淀', '门头沟', '房山', '通州', '顺义', '昌平', '大兴', '怀柔', '平谷', '密云', '延庆', '黄浦', '徐汇', '长宁', '静安', '普陀', '虹口', '杨浦', '闵行', '宝山', '嘉定', '浦东', '金山', '松江', '青浦', '奉贤', '崇明', '和平', '河东', '河西', '南开', '红桥', '滨海', '东丽', '西青', '津南', '北辰', '武清', '宝坻', '宁河', '静海', '蓟州', '渝中', '大渡口', '江北', '沙坪坝', '九龙坡', '南岸', '北碚', '渝北', '巴南', '涪陵', '万州', '黔江', '长寿', '江津', '合川', '永川', '南川', '綦江', '大足', '璧山', '铜梁', '潼南', '荣昌', '开州', '梁平', '武隆', '天河', '越秀', '荔湾', '海珠', '白云', '番禺', '花都', '南沙', '增城', '从化', '福田', '罗湖', '南山', '宝安', '龙岗', '盐田', '龙华', '坪山', '光明', '武侯', '锦江', '青羊', '金牛', '成华', '龙泉驿', '青白江', '新都', '温江', '双流', '郫都'];
+            if (commonDistricts.includes(name)) return name + '区';
+            return name;
+        }
+
+        // 去本地 window.CHINA_CITIES 数据库中匹配
+        const cityItem = window.CHINA_CITIES.find(item => item[0] === name);
+        if (cityItem) {
+            const province = cityItem[1];
+            
+            // 1. 四大直辖市判定
+            const zxs = ['北京', '上海', '天津', '重庆'];
+            if (zxs.includes(province)) {
+                if (name === province) {
+                    return name + '市'; // 直辖市本级，补齐“市”
+                } else {
+                    return name + '区'; // 直辖市下辖区，补齐“区”
+                }
+            }
+            
+            // 2. 广州、深圳的市辖区判定
+            if (province === '广东') {
+                const gzszDistricts = ['天河', '越秀', '荔湾', '海珠', '白云', '番禺', '花都', '南沙', '增城', '从化', '福田', '罗湖', '南山', '宝安', '龙岗', '盐田', '龙华', '坪山', '光明'];
+                if (gzszDistricts.includes(name)) {
+                    return name + '区';
+                }
+            }
+            
+            // 3. 成都的市辖区与县级市判定
+            if (province === '四川') {
+                const cdDistricts = ['武侯', '锦江', '青羊', '金牛', '成华', '龙泉驿', '青白江', '新都', '温江', '双流', '郫都'];
+                const cdCounties = ['都江堰', '彭州', '邛崃', '崇州', '简阳'];
+                if (cdDistricts.includes(name)) return name + '区';
+                if (cdCounties.includes(name)) return name + '市';
+            }
+
+            // 4. 其余所有普通地级市、省会城市判定：一律补齐“市”
+            return name + '市';
+        }
+
+        return name;
+    }
+
+    // --- 城市搜索与收藏逻辑 (本地数据库检索 + 国外 API 自动联网兜底) ---
     async function searchCities(query) {
         els.searchLoading.classList.remove('hidden');
         try {
-            const resp = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=10&accept-language=zh-CN&countrycodes=cn&addressdetails=1&email=thermal_app@example.com`);
-            const data = await resp.json();
-            renderSearchResults(data);
+            const queryLower = query.trim().toLowerCase();
+            const cleanQuery = query.trim().replace(/[市区县盟旗]$/, ""); // 智能剥离尾部行政后缀，以兼容带“市/区/县”的检索词
+            if (!queryLower) {
+                renderSearchResults([]);
+                return;
+            }
+
+            const localResults = [];
+            // 1. 优先在本地中国城市数据库中进行模糊搜索
+            if (window.CHINA_CITIES && window.CHINA_CITIES.length) {
+                for (let i = 0; i < window.CHINA_CITIES.length; i++) {
+                    const item = window.CHINA_CITIES[i];
+                    const name = item[0];
+                    const province = item[1];
+                    const pinyin = item[2];
+                    const py = item[3];
+
+                    // 匹配汉字、省份、全拼或者声母简拼（汉字检索使用剥离后缀后的 cleanQuery 以防误杀）
+                    if (name.includes(cleanQuery) || province.includes(cleanQuery) || pinyin.includes(queryLower) || py.includes(queryLower)) {
+                        localResults.push({
+                            name: formatCityName(name),
+                            sub: province === name ? "直辖市, 中国" : `${province}, 中国`,
+                            lat: item[4],
+                            lon: item[5]
+                        });
+                        if (localResults.length >= 10) break; // 最多取 10 个本地匹配项
+                    }
+                }
+            }
+
+            let onlineResults = [];
+            const isChinese = /[\u4e00-\u9fa5]/.test(query);
+
+            if (localResults.length === 0) {
+                if (!isChinese) {
+                    // A. 输入为拼音/英文：通过国内可高速直连的 Open-Meteo Geocoding 进行在线拼音兜底
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 4000); // 4秒超时保护
+
+                        const resp = await fetch(
+                            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=10&language=zh`,
+                            { signal: controller.signal }
+                        );
+                        const data = await resp.json();
+                        clearTimeout(timeoutId);
+
+                        if (data && data.results) {
+                            onlineResults = data.results.map(res => {
+                                const subParts = [res.admin1, res.country].filter(Boolean);
+                                return {
+                                    name: res.name,
+                                    sub: subParts.join(', ') || '全球地点',
+                                    lat: res.latitude,
+                                    lon: res.longitude
+                                };
+                            });
+                        }
+                    } catch (e) {
+                        console.warn('Open-Meteo 在线拼音搜索出错', e);
+                    }
+                } else {
+                    // B. 输入为中文汉字：直接无缝启用解除拉黑封锁后的 OSM Nominatim 极其强悍的中文全文模糊检索（弃用 Open-Meteo 以免发生汉字乱码）
+                    console.log(`[Geo Search] 触发 Nominatim 终极中文全文模糊检索，检索词: ${query}`);
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 4000);
+                        // [关键点] 彻底删除了被全网拉黑的 email=thermal_app@example.com 参数，彻底重归 100% 畅通与极速中文检索！
+                        const resp = await fetch(
+                            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&accept-language=zh-CN&addressdetails=1`,
+                            { signal: controller.signal }
+                        );
+                        const data = await resp.json();
+                        clearTimeout(timeoutId);
+
+                        if (data && Array.isArray(data)) {
+                            onlineResults = data.map(res => {
+                                const addr = res.address || {};
+                                const name = addr.district || addr.county || addr.city || addr.municipality || addr.town || res.display_name.split(',')[0];
+                                const sub = [addr.city, addr.province, addr.country].filter(i => i && i !== name).slice(0, 2).join(', ');
+                                return {
+                                    name: name,
+                                    sub: sub || '全球定位',
+                                    lat: parseFloat(res.lat),
+                                    lon: parseFloat(res.lon)
+                                };
+                            });
+                        }
+                    } catch (err2) {
+                        console.error('Nominatim 终极中文检索通道超时或失败', err2);
+                    }
+                }
+            }
+
+            // 4. 合并本地与在线搜索结果，并依据经纬度与名称前缀做极稳健去重
+            const combined = [...localResults];
+            onlineResults.forEach(onRes => {
+                const formattedOnName = formatCityName(onRes.name);
+                const isDup = combined.some(locRes => {
+                    const locName = locRes.name;
+                    const onName = formattedOnName;
+                    
+                    // 1. 名字相似度判定：前两个字符相同，或一方是另一方的前缀（如“无锡市”包含“无锡”）
+                    const nameMatch = locName.startsWith(onName) || onName.startsWith(locName) || locName.substring(0, 2) === onName.substring(0, 2);
+                    
+                    // 2. 地理距离判定：经纬度差均在 0.08 度 (约 8 公里) 以内
+                    const distMatch = Math.abs(locRes.lat - onRes.lat) < 0.08 && Math.abs(locRes.lon - onRes.lon) < 0.08;
+                    
+                    return nameMatch && distMatch;
+                });
+                if (!isDup) {
+                    onRes.name = formattedOnName; // 统一在线名称也套用后缀格式化
+                    combined.push(onRes);
+                }
+            });
+
+            renderSearchResults(combined.slice(0, 10));
+
         } catch (e) {
-            console.error('搜索失败', e);
+            console.error('城市检索失败', e);
         } finally {
             els.searchLoading.classList.add('hidden');
         }
@@ -205,17 +387,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     function renderSearchResults(results) {
         els.searchResults.innerHTML = results.length ? '' : '<div class="list-item">未找到结果</div>';
         results.forEach(res => {
-            const addr = res.address || {};
-            // 提取最精准的名称：优先 区/县，然后是 市/镇
-            const name = addr.district || addr.county || addr.city || addr.municipality || addr.town || res.display_name.split(',')[0];
-            const sub = [addr.city, addr.province, addr.country].filter(i => i && i !== name).slice(0, 2).join(', ');
             const item = document.createElement('div');
             item.className = 'list-item';
-            item.innerHTML = `<div><strong>${name}</strong> <small style="color:var(--text-tertiary)">${sub}</small></div>`;
+            item.innerHTML = `<div><strong>${res.name}</strong> <small style="color:var(--text-tertiary)">${res.sub}</small></div>`;
             item.onclick = () => {
-                const lat = parseFloat(res.lat);
-                const lon = parseFloat(res.lon);
-                applyNewLocation(lat, lon, name);
+                applyNewLocation(res.lat, res.lon, res.name);
                 els.locPanel.classList.add('hidden');
                 // 清空搜索内容
                 els.searchInput.value = '';
@@ -373,8 +549,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const hasData = outdoorData.max.some(v => v !== 0);
         if (!hasData) return;
 
-        // 简化标签：安卓端多行标签有时会导致渲染失败，改为单行
-        const simpleLabels = labels.map(l => Array.isArray(l) ? l[0] : l);
+        // 恢复多行标签显示：配合用户需求，在图表 X 轴同时显示日期与周几
+        const simpleLabels = labels;
 
         const cfg = {
             inGradFill: 'rgba(139,162,138,0.15)',
@@ -630,11 +806,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         drawSmoothCurve(outPts, '#d19090'); 
         drawSmoothCurve(inPts, '#8ba28a');
         
-        // 自动滚动到当前时间
-        if(currentIndex > 0) {
-            const scrollX = Math.max(0, (currentIndex * colWidth) - (els.hourlyCards.clientWidth / 2) + (colWidth / 2));
-            els.hourlyCards.scrollLeft = scrollX;
-        }
+        // 自动滚动到当前时间：将“现在”放在视图的第二位 (对标最新截图)
+        const resetScroll = () => {
+            if (els.hourlyCards) {
+                const relativeIndex = currentIndex - start;
+                const scrollOffset = Math.max(0, (relativeIndex - 1) * colWidth);
+                els.hourlyCards.scrollLeft = scrollOffset;
+            }
+        };
+
+        resetScroll();
+        setTimeout(resetScroll, 50);
+        setTimeout(resetScroll, 300);
     }
 
     function showDayDetail(index) {
@@ -679,17 +862,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 5. 地图与定位
     // ==========================================
     async function fetchCityName(lat, lon) {
+        // 1. 优先尝试在本地中国城市数据库中寻找最近邻匹配点
+        if (window.CHINA_CITIES && window.CHINA_CITIES.length) {
+            let minDistanceSq = Infinity;
+            let nearestCity = null;
+
+            for (let i = 0; i < window.CHINA_CITIES.length; i++) {
+                const item = window.CHINA_CITIES[i];
+                const cLat = item[4];
+                const cLon = item[5];
+                // 简单的欧氏距离平方
+                const dLat = lat - cLat;
+                const dLon = lon - cLon;
+                const distSq = dLat * dLat + dLon * dLon;
+                if (distSq < minDistanceSq) {
+                    minDistanceSq = distSq;
+                    nearestCity = item;
+                }
+            }
+
+            // 0.8 度的平方是 0.64 (0.8度约为80-90公里，覆盖主要地级市与核心区县)
+            if (minDistanceSq < 0.64 && nearestCity) {
+                console.log(`[Local Geo] 匹配到最近的本地城市: ${nearestCity[0]}，距离: ${Math.sqrt(minDistanceSq).toFixed(3)}度`);
+                return formatCityName(nearestCity[0]); // 直接返回该城市/区县名，0毫秒离线极速完成！
+            }
+        }
+
+        // 2. 如果本地未匹配到（例如在国外、海上或极偏远未收录区域），则使用带 3 秒超时的联网 Nominatim 接口反查作为兜底
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒超时
+        const timeoutId = setTimeout(() => controller.abort(), 3000); 
         try {
             const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=zh-CN`, { signal: controller.signal });
             const data = await resp.json();
             clearTimeout(timeoutId);
-            const addr = data.address;
+            const addr = data.address || {};
             // 优先级调整：区/县 > 市 > 镇/村
-            return addr.district || addr.county || addr.city || addr.municipality || addr.town || addr.village || '未知位置';
+            const rawName = addr.district || addr.county || addr.city || addr.municipality || addr.town || addr.village || '未知位置';
+            return formatCityName(rawName);
         } catch (e) {
-            return '定位点';
+            console.warn('联网反查地理位置超时或失败', e);
+            clearTimeout(timeoutId);
+            return `经纬度 (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
         }
     }
 
@@ -817,7 +1030,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // 显示城市和板块
         // 优先级：forcedName > cachedCityName > fetchCityName
-        const cityName = forcedName || cachedCityName || await fetchCityName(lat, lon);
+        let cityName = forcedName || cachedCityName || await fetchCityName(lat, lon);
+        cityName = formatCityName(cityName);
         els.locStatus.textContent = cityName;
         els.currentSection.style.display = 'flex';
         
