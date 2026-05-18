@@ -556,7 +556,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             inGradFill: 'rgba(139,162,138,0.15)',
             inGradBase: 'rgba(139,162,138,0.02)',
             inMaxBorder: '#8ba28a',
-            inMinBorder: '#7A90A4',
+            inMinBorder: '#92A8B9',
             outGradFill: 'rgba(209,144,144,0.15)',
             outGradBase: 'rgba(209,144,144,0.02)',
             outMaxBorder: '#d19090',
