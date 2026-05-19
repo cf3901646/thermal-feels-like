@@ -12,6 +12,9 @@ const ASSETS = [
   './cloudy.png',
   './partly_cloudy.png',
   './rainy.png',
+  './moderate_rain_v2.png',
+  './light_rain_v2.png',
+  './heavy_rain_v2.png',
   './stormy.png',
   './snowy.png',
   './foggy.png'

@@ -158,23 +158,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             3: { desc: '阴天', fluent: 'cloudy' },
             45: { desc: '有雾', fluent: 'foggy' },
             48: { desc: '雾霾', fluent: 'foggy' },
-            51: { desc: '细雨', fluent: 'rainy' },
-            53: { desc: '小雨', fluent: 'rainy' },
-            55: { desc: '中雨', fluent: 'rainy' },
+            51: { desc: '细雨', fluent: 'light_rain_v2' },
+            53: { desc: '小雨', fluent: 'light_rain_v2' },
+            55: { desc: '中雨', fluent: 'moderate_rain_v2' },
             56: { desc: '冻细雨', fluent: 'snowy' },
             57: { desc: '强冻细雨', fluent: 'snowy' },
-            61: { desc: '小雨', fluent: 'rainy' },
-            63: { desc: '中雨', fluent: 'rainy' },
-            65: { desc: '大雨', fluent: 'rainy' },
+            61: { desc: '小雨', fluent: 'light_rain_v2' },
+            63: { desc: '中雨', fluent: 'moderate_rain_v2' },
+            65: { desc: '大雨', fluent: 'heavy_rain_v2' },
             66: { desc: '冻雨', fluent: 'snowy' },
             67: { desc: '强冻雨', fluent: 'snowy' },
             71: { desc: '小雪', fluent: 'snowy' },
             73: { desc: '中雪', fluent: 'snowy' },
             75: { desc: '大雪', fluent: 'snowy' },
             77: { desc: '雪粒', fluent: 'snowy' },
-            80: { desc: '阵雨', fluent: 'rainy' },
-            81: { desc: '中阵雨', fluent: 'rainy' },
-            82: { desc: '强阵雨', fluent: 'rainy' },
+            80: { desc: '阵雨', fluent: 'light_rain_v2' },
+            81: { desc: '中阵雨', fluent: 'moderate_rain_v2' },
+            82: { desc: '强阵雨', fluent: 'heavy_rain_v2' },
             85: { desc: '阵雪', fluent: 'snowy' },
             86: { desc: '强阵雪', fluent: 'snowy' },
             95: { desc: '雷阵雨', fluent: 'stormy' },
@@ -185,7 +185,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function getFluentIconUrl(name) {
-        return `./${name}.png`;
+        return `./assets/fluent/${name}.png?v=ultimate_pure_cloud_v1`;
     }
 
     // --- 城市名本土化展示格式化器 ---

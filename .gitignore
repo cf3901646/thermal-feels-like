@@ -5,3 +5,4 @@ www/
 history_backups/
 .DS_Store
 *.log
+*.zip

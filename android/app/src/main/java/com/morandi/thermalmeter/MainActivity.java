@@ -18,9 +18,12 @@ public class MainActivity extends BridgeActivity {
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
         // 步骤 2: 强制状态栏图标为深色（灰色），匹配浅色 Morandi 背景
+        // 必须在 super.onCreate() 之后立即设置，且不能被 Capacitor 插件覆盖
         WindowInsetsControllerCompat controller =
             WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
-        controller.setAppearanceLightStatusBars(true); // true = 深色图标（用于浅色背景）
+        if (controller != null) {
+            controller.setAppearanceLightStatusBars(true); // true = 深色图标（用于浅色背景）
+        }
 
         // 步骤 2: 监听真实 Insets，在测量完成时立即注入
         View decorView = getWindow().getDecorView();
