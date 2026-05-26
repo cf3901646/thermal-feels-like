@@ -6,3 +6,5 @@ history_backups/
 .DS_Store
 *.log
 *.zip
+*.bak
+*.keystore

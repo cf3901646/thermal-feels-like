@@ -163,9 +163,21 @@ body {
     transition: all 0.2s;
 }
 
-.loc-action-btn:hover {
-    background: rgba(0, 0, 0, 0.05);
-    color: var(--text-main);
+/* 仅在支持鼠标悬停的设备上应用 hover 背景色 */
+@media (hover: hover) {
+    .loc-action-btn:hover {
+        background: rgba(0, 0, 0, 0.05);
+        color: var(--text-main);
+    }
+}
+
+/* 消除移动端点击聚焦后的灰色背景和轮廓残留 */
+.loc-action-btn:focus,
+.loc-action-btn:active,
+.loc-action-btn:focus-visible {
+    outline: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
 }
 
 .city-display-wrap {
@@ -882,6 +894,11 @@ body {
 }
 .ptr-icon.spinning {
     animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 .hour-icon, .day-icon {

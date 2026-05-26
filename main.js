@@ -111,7 +111,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     els.btnLoc.addEventListener('click', (e) => {
         e.stopPropagation();
-        requestGeolocation();
+        els.btnLoc.blur(); // 强制让按钮失去焦点，消除移动端点击后的灰色背景残留
+        requestGeolocation(true); // 手动点击触发定位
         els.locPanel.classList.add('hidden');
     });
 
@@ -1045,40 +1046,83 @@ document.addEventListener('DOMContentLoaded', async () => {
         finally { els.loading.classList.add('hidden'); }
     }
 
-    async function requestGeolocation() {
+    async function requestGeolocation(isManual = false) {
         const cached = loadCache();
-        if (cached) {
-            // 如果有缓存，瞬间加载缓存数据
-            await renderWeatherData(cached.data, cached.lat, cached.lon, cached.cityName);
 
-            // 立即隐藏加载遮罩
-            els.loading.classList.add('hidden');
-
-            // 后台静默刷新最新数据
-            fetchForecastData(cached.lat, cached.lon, true);
-        } else {
-            // 仅在完全没有缓存时才显示加载状态
-            els.loading.classList.remove('hidden');
+        if (isManual) {
+            // 手动触发定位时，直接模拟下拉刷新的头部展开动画与加载圈旋转
+            isRefreshing = true;
+            els.ptrContainer.style.height = '60px';
+            els.ptrText.textContent = '正在重新定位...';
+            els.ptrIcon.classList.add('spinning');
+            
             els.locStatus.textContent = '正在获取位置...';
+        } else {
+            if (cached) {
+                // 如果有缓存，瞬间加载缓存数据
+                await renderWeatherData(cached.data, cached.lat, cached.lon, cached.cityName);
+
+                // 立即隐藏加载遮罩
+                els.loading.classList.add('hidden');
+
+                // 后台静默刷新最新数据
+                fetchForecastData(cached.lat, cached.lon, true);
+            } else {
+                // 仅在完全没有缓存时才显示加载状态
+                els.loading.classList.remove('hidden');
+                els.locStatus.textContent = '正在获取位置...';
+            }
         }
 
-        if (!navigator.geolocation) return;
+        if (!navigator.geolocation) {
+            if (isManual) {
+                els.ptrIcon.classList.remove('spinning');
+                els.ptrContainer.style.height = '0';
+                isRefreshing = false;
+            }
+            return;
+        }
+
         navigator.geolocation.getCurrentPosition(pos => {
-            const applyLocation = (lat, lon) => {
+            const applyLocation = async (lat, lon) => {
                 myLat = lat; myLon = lon;
                 map.setView([myLat, myLon], 11);
                 if (marker) marker.setLatLng([myLat, myLon]);
                 else marker = L.marker([myLat, myLon], { icon: customMapIcon }).addTo(map);
                 els.mapWrap.classList.add('hidden');
 
-                // 如果没有缓存，或者定位的位置发生了显著变化，则重新获取
-                if (!cached || Math.abs(cached.lat - lat) > 0.05 || Math.abs(cached.lon - lon) > 0.05) {
-                    fetchForecastData(myLat, myLon, !!cached);
+                if (isManual) {
+                    els.locStatus.textContent = '正在刷新气象...';
+                    els.ptrText.textContent = '正在刷新气象...';
+                    try {
+                        // 手动触发时强制从服务器静默拉取最新的天气数据
+                        await fetchForecastData(myLat, myLon, true);
+                    } catch (e) {
+                        console.error('手动刷新数据失败', e);
+                        els.locStatus.textContent = '刷新气象失败';
+                    }
+                    // 因为 isRefreshing = true，fetchForecastData 执行结束的 try/catch 块中会
+                    // 自动处理 els.ptrIcon.classList.remove('spinning') 以及 els.ptrContainer.style.height = '0'。
+                } else {
+                    // 如果没有缓存，或者定位的位置发生了显著变化，则重新获取
+                    if (!cached || Math.abs(cached.lat - lat) > 0.05 || Math.abs(cached.lon - lon) > 0.05) {
+                        fetchForecastData(myLat, myLon, !!cached);
+                    }
                 }
             };
             applyLocation(pos.coords.latitude, pos.coords.longitude);
         }, err => {
-            if (!cached) {
+            if (isManual) {
+                els.locStatus.textContent = '定位失败';
+                
+                // 定位失败时收起下拉刷新状态
+                els.ptrIcon.classList.remove('spinning');
+                els.ptrContainer.style.height = '0';
+                els.ptrText.textContent = '定位失败';
+                isRefreshing = false;
+
+                alert('获取当前定位失败，请检查设备定位服务或授权状态');
+            } else if (!cached) {
                 els.locStatus.textContent = '定位失败，请手动选点';
                 els.loading.classList.add('hidden');
             }
